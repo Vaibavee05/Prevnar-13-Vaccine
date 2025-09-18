@@ -31,7 +31,7 @@ The Analysis involves 3 Major segments.
             Heat Map
             CERNO Results
 3.Pathway-Level Insights
-            GSEA (Genome-Wide Association)
+            GSEA (Gene Set Enrichment Analysis)
             Hallmarks of GSEA
             Tree Plot
 
