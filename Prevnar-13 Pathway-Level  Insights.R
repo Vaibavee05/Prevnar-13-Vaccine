@@ -62,7 +62,7 @@ ggsave(filename = paste(backup_file, "/disease_annotate/treeplot_disease_cluster
 
 
 #Run GSEA for Disease Ontology
-#his script runs GSEA for Disease Ontology terms, checks if any enrichments are found, then visualizes them in a dotplot and saves the result as a figure
+#This script runs GSEA for Disease Ontology terms, checks if any enrichments are found, then visualizes them in a dotplot and saves the result as a figure
 gene_set_enrich <- gseDO(
   regulated_entrezids_logFC_vector,
   pvalueCutoff = 0.2
@@ -71,6 +71,8 @@ if(length(gene_set_enrich$pvalue) > 0){
 dotplot = dotplot(gene_set_enrich)
 ggsave(filename = "dotplot.jpg", plot = dotplot, 
        dpi = 300, height = 10, width = 12, device = "jpeg", bg = "white")
+
+
 
 
 
