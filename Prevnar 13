@@ -1,3 +1,4 @@
+#This code is cleaning and merging a microarray expression dataset with its gene annotation file.
 # Read a tab-delimited text file into R as a data frame.
 expr_mtx = read.delim("GSE298577_Prevnar.D0.D7.RMA.txt")
 
@@ -34,5 +35,194 @@ expr_mtx = expr_mtx[,-c(1,84)]
 
 #Delete gene_annot object from memory.
 rm(gene_annot)
+
+# WOrk on Metadata
+#make a table with one row per sample, using the column names of the expression matrix as IDs.
+metainfo = data.frame(ID = colnames(expr_mtx))
+
+#This removes extra text from sample IDs.
+metainfo$sample_info = sub("Subj\\.(PNM[A-D][0-9]+_Day[0-9]+).*", "\\1", metainfo$ID)
+
+#Each cleaned label is split into subject ID and day
+metainfo$day = unlist(lapply(1:nrow(metainfo), function(x){
+  strsplit(metainfo$sample_info[x], "_")[[1]][2]
+}))
+
+#Sort samples and tidy table
+metainfo = metainfo[order(metainfo$day),]
+metainfo = metainfo[,-3]
+rownames(metainfo)=NULL
+
+#Two new columns are created to mark group membership 
+metainfo$T0 = c(rep("1", 41), rep("0", 41))
+metainfo$T7 = c(rep("0", 41), rep("1", 41))
+
+#Align sample table with expression matrix
+#The cleaned sample labels become row names in the metadata table.
+rownames(metainfo) = metainfo$sample_info
+colnames(expr_mtx) = sub("Subj\\.(PNM[A-D][0-9]+_Day[0-9]+).*", "\\1", colnames(expr_mtx))
+expr_mtx = expr_mtx[,match(rownames(metainfo), colnames(expr_mtx))]
+
+#formula specifying that the model should compare Day 7 against Day 0.
+form = ~(T7-T0)
+
+#Use the dream function fits a model for each gene, estimating differences in expression between Day 0 and Day 7.
+dge_dream_fit = dream(exprObj = expr_mtx, formula = form, data = metainfo, BPPARAM = param)
+dge_dream_fit_ebayes = eBayes(dge_dream_fit)
+ge_tophits = limma::topTable(dge_dream_fit_ebayes, number = 20000, sort.by = "logFC") #Generate ranked results
+dge_tophits$gene_symbol = rownames(dge_tophits)
+
+
+#volcanoplot
+# function that’s generating plots of differential gene expression (DGE) results
+
+step4_makeVolcanoHeatplots = function(dge_tophits, metainfo, expr_mtx){
+       
+    +     print("Step 4 - Primary analysis of DGEs through various plots .. ")
+       
+    +     
+        +         
+        +         print(paste("Created a new directory to save the DGE analysis results",sep = ""))
+      +         
+        +     }else{print(paste("Found backup directory to save the DGE analysis",sep=""))}
+
+upreg_genes_num = dim(dge_tophits[dge_tophits$logFC > 0.001 & dge_tophits$P.Value < 0.05,])[1]
+downreg_genes_num = dim(dge_tophits[dge_tophits$logFC < -0.001 & dge_tophits$P.Value < 0.05,])[1]
+de_genes = data.frame(genes = c(upreg_genes_num, downreg_genes_num), type = c("Upregulated", "Downregulated"))
+
+de_genes_plot = ggplot(de_genes, aes(y = type, x = as.numeric(genes), fill = type))+
+      geom_bar(position = "dodge", stat = "identity", width = 0.4)+
+       ylab("Type")+xlab("Number of genes")+geom_text(aes(label = genes), position = position_dodge(width = 0.9), hjust = -0.25, size = 6)+
+       scale_fill_manual("Groups", values = c("#0A0DAE", "#F57A00"))+ ggtitle("Number of DEGs (pval < 0.05, lfc > 0.1)")+
+       theme_bw()+theme(plot.title = element_text(size = 16, hjust = 0.5), axis.title.y = element_blank(), axis.title.x = element_text(size = 16),
+                                               legend.title = element_text(size = 16), legend.text = element_text(size = 14),
+                                               axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.text.x = element_text(size = 14))
+
+ggsave(plot = de_genes_plot, filename = paste( "de_genes.jpeg", sep = ""),
+         +        dpi = 300, height = 6, width = 15, device = "jpeg", bg = "white")
+
+
+
+#PCA (Principal Component Analysis) to cluster and visualize your samples.
+#This code computes PCA on your expression data, calculates how much variance is explained by PCs, 
+#and plots samples in PC1–PC2 space with ellipses around groups. The result is a clean PCA scatter plot for clustering visualization.
+
+pc_comp = prcomp(t(expr_mtx))
+pc_var = pc_comp$sdev^2
+pc_per = round(pc_var/sum(pc_comp$sdev^2)*100, 1) #Calculate variance
+pc_comp_df = as_tibble(pc_comp$x) #Convert PCA results to data frame
+groups = metainfo$group #Assign sample groups
+#Build PCA scatter plot
+pca_plot = ggplot(pc_comp_df, aes(x=PC1, y=PC2, colour = groups)) +
+    geom_point(size=4, alpha = 0.7) +
+    stat_ellipse(alpha = 0.5) +
+    theme_bw() +
+    theme(
+        axis.title.x = element_text(size = 16),
+        axis.title.y = element_text(size = 16),
+        legend.title = element_text(size = 16),
+        legend.text = element_text(size = 14),
+        plot.title = element_text(size = 18, hjust = 0.5)
+    )
+xlab(paste0("PC1 (", pc_per[1], "% variance)")) +
+ylab(paste0("PC2 (", pc_per[2], "% variance)"))
+
+ggsave(plot = pca_plot, filename = "pca_plot.jpeg",
+       dpi = 300, height = 10, width = 12, device = "jpeg", bg = "white")
+
+
+
+
+#t-SNE 
+# Run PCA first (recommended for stability before t-SNE)
+ pc_comp <- prcomp(t(expr_mtx[,-1]), scale. = TRUE)
+ pc_scores <- pc_comp$x[, 1:30]   # take first 30 PCs for t-SNE
+ 
+ # Run t-SNE
+ set.seed(123)  # ensures reproducibility
+ tsne_out <- Rtsne(pc_scores, dims = 2, perplexity = 30, verbose = TRUE)
+ 
+ # Put results in a dataframe
+ tsne_df <- as_tibble(tsne_out$Y)
+ colnames(tsne_df) <- c("tSNE1", "tSNE2")
+ tsne_df$groups <- metainfo$group
+ 
+ # Plot (similar style to your PCA plot)
+ tsne_plot <- ggplot(tsne_df, aes(x = tSNE1, y = tSNE2, colour = groups)) +
+   geom_point(size = 4, alpha = 0.7) +
+   stat_ellipse(alpha = 0.5) +
+   theme_bw() +
+   theme(
+     axis.title.x = element_text(size = 16),
+     axis.title.y = element_text(size = 16),
+     legend.title = element_text(size = 16),
+     legend.text  = element_text(size = 14),
+     plot.title   = element_text(size = 18, hjust = 0.5)
+   )
+ 
+ # Save the plot
+ ggsave(
+   plot = tsne_plot,
+   filename = "tsne_plot.jpeg",
+   dpi = 300,
+   height = 10,
+   width = 12,
+   device = "jpeg",
+   bg = "white"
+ )
+
+
+
+#umap code
+ umap_comp = umap::umap(t(expr_mtx[,-1]))
+ 
+ #extracting the coordinates of the samples in the umap
+ umap_layout = umap_comp[["layout"]]
+ umap_layout = data.frame(umap_layout)
+ 
+ #adding information on the sampleIDs as a column
+ umap_layout$sample_id = rownames(umap_layout)
+ umap_layout = subset(umap_layout, select = -c(sample_id))
+ groups = metainfo$T0
+ #plotting the umap now
+ umap_plot = ggplot(umap_layout, aes(x = X1, y = X2, color = groups)) + geom_point(size = 4, alpha = 0.7)+stat_ellipse(alpha = 0.5)+
+   xlab("X1")+ylab("X2")+
+   scale_colour_manual("Groups", values = c("#EC0B43", "#58355E"))+
+   theme_bw()+theme(axis.title.x = element_text(size = 16), axis.title.y = element_text(size = 16),
+                    legend.title = element_text(size = 16), legend.text = element_text(size = 14),
+                    plot.title = element_text(size = 18, hjust = 0.5))
+ 
+ #saving the plot
+ ggsave(plot = umap_plot, filename = "umap_plot.jpeg",
+        dpi = 300, height = 10, width = 12, device = "jpeg", bg = "white")
+
+
+#performing volcano plot to visualize the DEGs"
+dge_tophits_significant = dge_tophits[dge_tophits$P.Value < 0.05,]
+upreg_genes = dge_tophits_significant[dge_tophits_significant$logFC > 0,]
+downreg_genes = dge_tophits_significant[dge_tophits_significant$logFC < 0,]
+upreg_genes = upreg_genes[order(upreg_genes$logFC, decreasing = TRUE),][1:5,]
+downreg_genes = downreg_genes[order(downreg_genes$logFC, decreasing = FALSE),][1:5,]
+upreg_genes$trend = rep("Up-regulated")
+downreg_genes$trend = rep("Down-regulated")
+dge_info = rbind(upreg_genes, downreg_genes) 
+
+library(ggrepel)
+volcano_plot = volcano_plot + 
+  +     geom_label_repel(
+    +         data = dge_info, 
+    +         mapping = aes(x = logFC, y = -log10(P.Value), label = gene_symbol), 
+    +         color = "black",
+    +         size = 8
+     )
+ggsave(plot = volcano_plot,
+       +        filename = "volcano_plot.jpeg",
+       +        dpi = 300,
+       +        height = 10,
+       +        width = 12,
+       +        device = "jpeg",
+       +        bg = "white")
+
+
 
 
