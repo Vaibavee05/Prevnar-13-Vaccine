@@ -1,1 +1,36 @@
+#Differential Expression & Enrichment
+
+#performing volcano plot to visualize the DEGs"
+dge_tophits_significant = dge_tophits[dge_tophits$P.Value < 0.05,]
+upreg_genes = dge_tophits_significant[dge_tophits_significant$logFC > 0,]
+downreg_genes = dge_tophits_significant[dge_tophits_significant$logFC < 0,]
+upreg_genes = upreg_genes[order(upreg_genes$logFC, decreasing = TRUE),][1:5,]
+downreg_genes = downreg_genes[order(downreg_genes$logFC, decreasing = FALSE),][1:5,]
+upreg_genes$trend = rep("Up-regulated")
+downreg_genes$trend = rep("Down-regulated")
+dge_info = rbind(upreg_genes, downreg_genes) 
+
+library(ggrepel)
+volcano_plot = volcano_plot + 
+  +     geom_label_repel(
+    +         data = dge_info, 
+    +         mapping = aes(x = logFC, y = -log10(P.Value), label = gene_symbol), 
+    +         color = "black",
+    +         size = 8
+     )
+ggsave(plot = volcano_plot,
+       +        filename = "volcano_plot.jpeg",
+       +        dpi = 300,
+       +        height = 10,
+       +        width = 12,
+       +        device = "jpeg",
+       +        bg = "white")
+
+
+
+
+
+
+
+
 
