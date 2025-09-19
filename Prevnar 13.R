@@ -1,3 +1,39 @@
+library(ggplot2) #for plotting
+library(ggrepel) #for adding labels to volcano plots
+library(cowplot) #for plotting
+library(umap) #for plotting UMAP plots
+library(tidyr) # for manipulating data to making dataframes that can be plotted easily
+library(dplyr) # for manipulating data to making dataframes that can be plotted easily - pt 2
+library(tidyverse) #because no escaping tidyverse
+library(stringr) #for string manipulation
+library(kableExtra) #for making tables
+library(readxl) #for importing xlsx files
+#library(biomaRt) #for converting between probe id and gene id
+library(limma) #the central package for performing DE analysis - also mentioned in Christophe's WP2 presentation
+#library(affy) #reading the CEL files from affymetrics
+library(affxparser) #reading the chp files
+#library(gcrma) #adjusting background intensities in the affy mdata which could include optical noise and non-specific binding
+#gcrma uses information on sequences to identify the non-specific binding of transcripts to probes
+#to use this as a factor for normalizing
+library(oligo) #reading CEL files pt.2 - directly downloads required annotations
+library(plotly) #for plotting alongwith ggplot
+library(gplots) #for making heatmaps
+library(gprofiler2) #for performing gene ontologies
+library(msigdbr) #alternative to gene ontology - in the presentation from Christophe
+library(clariomshumantranscriptcluster.db) #affymtx annotation pt. 1
+library(pd.clariom.s.human.ht) #affymtx annotation pt. 2
+library(sva) #correcting batch effects
+library(variancePartition) #fitting linear models with repeated measures
+#library(edgeR) #for filtering and normalizing counts
+library(tmod) #for performing GO or similar analyses - tutorial - https://tmod.online/articles/user_manual/tmod_user_manual.html
+library(BloodGen3Module) #for plotting the blood transcriptome modules
+library(enrichplot) #plotting enrichment analysis
+library(DOSE) #making enrichment analysis
+library(pheatmap) #for making heatmaps
+library(rWikiPathways) #for performing pathway enrichment analysis
+library(clusterProfiler) #for performing pathway enrichment analysis
+library(pathfindR) #for making pathway enrichment analysis
+
 #This code is cleaning and merging a microarray expression dataset with its gene annotation file.
 # Read a tab-delimited text file into R as a data frame.
 expr_mtx = read.delim("GSE298577_Prevnar.D0.D7.RMA.txt")
